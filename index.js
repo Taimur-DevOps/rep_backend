@@ -8,6 +8,10 @@ import userRoutes from "./Routes/UserRoutes.js"; // Import user routes
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import dotenv from "dotenv";
+
+
+dotenv.config();
 
 const app = express();
 app.use(bodyParser.json());

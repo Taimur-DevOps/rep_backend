@@ -1,6 +1,8 @@
 import Property from "../Models/Property.js";
 import fs from "fs";
 import path from "path";
+import { mapImageUrls } from "../utils/imgUrl.js";
+
 
 // @desc    Get all properties
 // @route   GET /api/properties
@@ -102,7 +104,8 @@ const createProperty = async (req, res) => {
     } = req.body;
 
     // Handle file uploads
-    const images = req.files ? req.files.map((file) => file.path) : [];
+   // const images = req.files ? req.files.map((file) => file.path) : [];
+   const images = req.files ? mapImageUrls(req.files) : [];
 
     const property = new Property({
       propertyId,
@@ -165,7 +168,7 @@ const updateProperty = async (req, res) => {
 
     if (req.files && req.files.length > 0) {
       // Add new images to existing ones
-      const newImages = req.files.map((file) => file.path);
+      const newImages = mapImageUrls(req.files);
       images = [...images, ...newImages];
     }
 
