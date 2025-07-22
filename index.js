@@ -5,6 +5,7 @@ import cors from "cors";
 import mongoose from "mongoose";
 import propertyRoutes from "./Routes/PropertyRoutes.js";
 import userRoutes from "./Routes/UserRoutes.js"; // Import user routes
+import heroSectionRoutes from './Routes/HeroSection.js';
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -119,3 +120,6 @@ app.listen(PORT, () => {
   console.log(`- Users: http://localhost:${PORT}/api/users`);
   console.log(`- Health check: http://localhost:${PORT}/health`);
 });
+
+
+app.use('/api/hero-section', heroSectionRoutes);
