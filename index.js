@@ -57,6 +57,7 @@ app.use(
 // API Routes
 app.use("/api/properties", propertyRoutes);
 app.use("/api/users", userRoutes); // Add user routes
+app.use('/api/hero-section', heroSectionRoutes);
 
 // Home route
 app.get("/", (req, res) => {
@@ -121,5 +122,3 @@ app.listen(PORT, () => {
   console.log(`- Health check: http://localhost:${PORT}/health`);
 });
 
-
-app.use('/api/hero-section', heroSectionRoutes);

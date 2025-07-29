@@ -2,20 +2,21 @@ import express from 'express';
 import {
   createHeroSection,
   getHeroSections,
-  getHeroSectionById,
   updateHeroSection,
-  deleteHeroSection,
+  deleteHeroImage,
 } from '../Controllers/HeroController.js';
+import upload from '../middleware/upload.js';
 
 const router = express.Router();
 
-router.route('/')
+  router
+  .route('/')
   .get(getHeroSections)
-  .post(createHeroSection);
+  .post(upload.array('images', 10), createHeroSection);
 
 router.route('/:id')
-  .get(getHeroSectionById)
-  .put(updateHeroSection)
-  .delete(deleteHeroSection);
+  .put(upload.array('images', 10), updateHeroSection);
+
+router.delete('/:id/images/:index', deleteHeroImage);
 
 export default router;
