@@ -2,10 +2,6 @@ import mongoose from 'mongoose';
 
 const heroSectionSchema = new mongoose.Schema(
   {
-    title: {
-      type: String,
-      required: true,
-    },
     images: [
       {
         type: String, // Store image URLs or paths
@@ -13,7 +9,7 @@ const heroSectionSchema = new mongoose.Schema(
     ],
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt timestamps
+    timestamps: true,
   }
 );
 

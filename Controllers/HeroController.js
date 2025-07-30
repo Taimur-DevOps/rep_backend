@@ -1,16 +1,10 @@
 import HeroSection from '../Models/HeroSection.js'; 
 
-// @desc    Create a new hero section
-// @route   POST /api/hero-section
-// @access  Public or Protected (based on your app logic)
+// Create a new hero section with uploaded images
 export const createHeroSection = async (req, res) => {
   try {
-    const { title } = req.body;
-
-    // ✅ Read image file paths
     const images = req.files.map((file) => `/uploads/${file.filename}`);
-
-    const heroSection = await HeroSection.create({ title, images });
+    const heroSection = await HeroSection.create({ images });
 
     res.status(201).json(heroSection);
   } catch (error) {
@@ -18,9 +12,7 @@ export const createHeroSection = async (req, res) => {
   }
 };
 
-// @desc    Get all hero sections
-// @route   GET /api/hero-section
-// @access  Public or Protected
+// Get all hero sections
 export const getHeroSections = async (req, res) => {
   try {
     const heroSections = await HeroSection.find().sort({ createdAt: -1 });
@@ -30,38 +22,34 @@ export const getHeroSections = async (req, res) => {
   }
 };
 
-
-// @desc    Update a hero section
-// @route   PUT /api/hero-section/:id
-// @access  Protected (typically admin)
+// Update images of a hero section
 export const updateHeroSection = async (req, res) => {
   try {
-    const { title, images } = req.body;
-
     const heroSection = await HeroSection.findById(req.params.id);
+    if (!heroSection) return res.status(404).json({ message: "Not found" });
 
-    if (!heroSection) {
-      return res.status(404).json({ message: 'Hero section not found' });
-    }
+    const newImages = req.files?.map((file) => `/uploads/${file.filename}`) || [];
 
-    heroSection.title = title || heroSection.title;
-    heroSection.images = images || heroSection.images;
+    // ✅ Parse preserved image paths
+    const existingImages = req.body.existingImages
+      ? JSON.parse(req.body.existingImages)
+      : [];
 
-    const updatedHeroSection = await heroSection.save();
-    res.status(200).json(updatedHeroSection);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    heroSection.images = [...existingImages, ...newImages];
+
+    const updated = await heroSection.save();
+    res.status(200).json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Update failed", error: err.message });
   }
 };
 
-// @desc    Delete image from hero section
-// @route   DELETE /api/hero-section/:id/images/:index
-// @access  Protected
+// Delete a specific image from hero section
 export const deleteHeroImage = async (req, res) => {
   try {
     const { id, index } = req.params;
-
     const heroSection = await HeroSection.findById(id);
+
     if (!heroSection) {
       return res.status(404).json({ message: 'Hero section not found' });
     }
@@ -71,7 +59,7 @@ export const deleteHeroImage = async (req, res) => {
       return res.status(400).json({ message: 'Invalid image index' });
     }
 
-    heroSection.images.splice(idx, 1); // remove image at index
+    heroSection.images.splice(idx, 1);
     await heroSection.save();
 
     res.status(200).json({ message: 'Image removed', images: heroSection.images });
@@ -79,4 +67,3 @@ export const deleteHeroImage = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
-
