@@ -45,25 +45,22 @@ export const updateHeroSection = async (req, res) => {
 };
 
 // Delete a specific image from hero section
-export const deleteHeroImage = async (req, res) => {
+export const deleteHeroSection = async (req, res) => {
   try {
-    const { id, index } = req.params;
-    const heroSection = await HeroSection.findById(id);
-
-    if (!heroSection) {
-      return res.status(404).json({ message: 'Hero section not found' });
-    }
-
-    const idx = parseInt(index);
-    if (isNaN(idx) || idx < 0 || idx >= heroSection.images.length) {
-      return res.status(400).json({ message: 'Invalid image index' });
-    }
-
-    heroSection.images.splice(idx, 1);
-    await heroSection.save();
-
-    res.status(200).json({ message: 'Image removed', images: heroSection.images });
+    const { id } = req.params;
+    await HeroSection.findByIdAndDelete(id);
+    res.status(200).json({ message: "Hero section deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
+// Delete all hero sections
+export const deleteAllHeroSections = async (req, res) => {
+  try {
+    await HeroSection.deleteMany({});
+    res.status(200).json({ message: "All hero sections deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete all hero sections", error: error.message });
+  }
+};
+
