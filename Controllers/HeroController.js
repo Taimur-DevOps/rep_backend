@@ -45,15 +45,17 @@ export const updateHeroSection = async (req, res) => {
 };
 
 // Delete a specific image from hero section
-export const deleteHeroSection = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await HeroSection.findByIdAndDelete(id);
-    res.status(200).json({ message: "Hero section deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+export const deleteImageFromHeroSection = async (req, res) => {
+  const { sectionId, imagePath } = req.body;
+  const heroSection = await HeroSection.findById(sectionId);
+  if (!heroSection) return res.status(404).json({ message: "Section not found" });
+
+  heroSection.images = heroSection.images.filter(img => img !== imagePath);
+  await heroSection.save();
+
+  res.status(200).json({ message: "Image removed", updatedImages: heroSection.images });
 };
+
 // Delete all hero sections
 export const deleteAllHeroSections = async (req, res) => {
   try {
