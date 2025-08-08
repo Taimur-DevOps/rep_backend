@@ -284,14 +284,13 @@ const searchProperties = async (req, res) => {
   }
 };
 
-// @desc    Search properties with pagination
+// @desc    Search properties with pagination (single search box for title, type, location)
 // @route   GET /api/properties/search/paginated
 // @access  Public
 const searchPropertiesPaginated = async (req, res) => {
   try {
     const {
-      location,
-      propertyType,
+      search = "", // single search term
       bedrooms,
       bathrooms,
       minPrice,
@@ -302,8 +301,15 @@ const searchPropertiesPaginated = async (req, res) => {
 
     const query = {};
 
-    if (location) query.location = { $regex: location, $options: "i" };
-    if (propertyType) query.propertyType = propertyType;
+    // If search term exists, match title, propertyType, or location
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { propertyType: { $regex: search, $options: "i" } },
+        { location: { $regex: search, $options: "i" } },
+      ];
+    }
+
     if (bedrooms) query.bedrooms = { $gte: parseInt(bedrooms) };
     if (bathrooms) query.bathrooms = { $gte: parseInt(bathrooms) };
 
@@ -317,11 +323,9 @@ const searchPropertiesPaginated = async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // Get total count for pagination info
     const totalProperties = await Property.countDocuments(query);
     const totalPages = Math.ceil(totalProperties / limitNum);
 
-    // Get paginated search results
     const properties = await Property.find(query)
       .skip(skip)
       .limit(limitNum)
