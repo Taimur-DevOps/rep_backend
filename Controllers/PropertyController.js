@@ -307,8 +307,10 @@ const searchPropertiesPaginated = async (req, res) => {
         { title: { $regex: search, $options: "i" } },
         { propertyType: { $regex: search, $options: "i" } },
         { location: { $regex: search, $options: "i" } },
+        { propertyId: { $regex: search, $options: "i" } }, // added propertyId search
       ];
     }
+    
 
     if (bedrooms) query.bedrooms = { $gte: parseInt(bedrooms) };
     if (bathrooms) query.bathrooms = { $gte: parseInt(bathrooms) };
