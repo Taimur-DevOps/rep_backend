@@ -1,8 +1,20 @@
 import Property from "../Models/Property.js";
-import fs from "fs";
-import path from "path";
-import { mapImageUrls } from "../utils/imgUrl.js";
+import cloudinary from "../config/cloudinary.js";
+import streamifier from "streamifier";
 
+// Helper to upload a file buffer to Cloudinary
+const uploadToCloudinary = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "properties" }, // Cloudinary folder
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(fileBuffer).pipe(stream);
+  });
+};
 
 // @desc    Get all properties
 // @route   GET /api/properties
@@ -25,15 +37,13 @@ const getPaginatedProperties = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Get total count for pagination info
     const totalProperties = await Property.countDocuments({});
     const totalPages = Math.ceil(totalProperties / limit);
 
-    // Get paginated properties
     const properties = await Property.find({})
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 }); // Sort by newest first
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       properties,
@@ -69,12 +79,8 @@ const getFeaturedProperties = async (req, res) => {
 const getPropertyById = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-
-    if (property) {
-      res.status(200).json(property);
-    } else {
-      res.status(404).json({ message: "Property not found" });
-    }
+    if (property) res.status(200).json(property);
+    else res.status(404).json({ message: "Property not found" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -103,9 +109,9 @@ const createProperty = async (req, res) => {
       features,
     } = req.body;
 
-    // Handle file uploads
-   // const images = req.files ? req.files.map((file) => file.path) : [];
-   const images = req.files ? mapImageUrls(req.files) : [];
+    const images = req.files
+      ? await Promise.all(req.files.map(file => uploadToCloudinary(file.buffer)))
+      : [];
 
     const property = new Property({
       propertyId,
@@ -139,12 +145,8 @@ const createProperty = async (req, res) => {
 const updateProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: "Property not found" });
 
-    if (!property) {
-      return res.status(404).json({ message: "Property not found" });
-    }
-
-    // Fields to update
     const {
       propertyId,
       title,
@@ -163,16 +165,12 @@ const updateProperty = async (req, res) => {
       features,
     } = req.body;
 
-    // Handle uploaded images
     let images = property.images;
-
     if (req.files && req.files.length > 0) {
-      // Add new images to existing ones
-      const newImages = mapImageUrls(req.files);
+      const newImages = await Promise.all(req.files.map(file => uploadToCloudinary(file.buffer)));
       images = [...images, ...newImages];
     }
 
-    // Update property fields
     property.propertyId = propertyId || property.propertyId;
     property.title = title || property.title;
     property.description = description || property.description;
@@ -203,18 +201,7 @@ const updateProperty = async (req, res) => {
 const deleteProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-
-    if (!property) {
-      return res.status(404).json({ message: "Property not found" });
-    }
-
-    // Delete associated images from filesystem
-    property.images.forEach((image) => {
-      const imagePath = path.join(process.cwd(), image);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
-    });
+    if (!property) return res.status(404).json({ message: "Property not found" });
 
     await property.deleteOne();
     res.status(200).json({ message: "Property removed" });
@@ -229,26 +216,14 @@ const deleteProperty = async (req, res) => {
 const deletePropertyImage = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-
-    if (!property) {
-      return res.status(404).json({ message: "Property not found" });
-    }
+    if (!property) return res.status(404).json({ message: "Property not found" });
 
     const imageIndex = parseInt(req.params.imageIndex);
-
     if (imageIndex < 0 || imageIndex >= property.images.length) {
       return res.status(400).json({ message: "Invalid image index" });
     }
 
-    // Delete the image file
-    const imagePath = path.join(process.cwd(), property.images[imageIndex]);
-    if (fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
-    }
-
-    // Remove image from array
     property.images.splice(imageIndex, 1);
-
     const updatedProperty = await property.save();
     res.status(200).json(updatedProperty);
   } catch (error) {
@@ -261,16 +236,13 @@ const deletePropertyImage = async (req, res) => {
 // @access  Public
 const searchProperties = async (req, res) => {
   try {
-    const { location, propertyType, bedrooms, bathrooms, minPrice, maxPrice } =
-      req.query;
-
+    const { location, propertyType, bedrooms, bathrooms, minPrice, maxPrice } = req.query;
     const query = {};
 
     if (location) query.location = { $regex: location, $options: "i" };
     if (propertyType) query.propertyType = propertyType;
     if (bedrooms) query.bedrooms = { $gte: parseInt(bedrooms) };
     if (bathrooms) query.bathrooms = { $gte: parseInt(bathrooms) };
-
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = parseInt(minPrice);
@@ -284,13 +256,13 @@ const searchProperties = async (req, res) => {
   }
 };
 
-// @desc    Search properties with pagination (single search box for title, type, location)
+// @desc    Search with pagination
 // @route   GET /api/properties/search/paginated
 // @access  Public
 const searchPropertiesPaginated = async (req, res) => {
   try {
     const {
-      search = "", // single search term
+      search = "",
       bedrooms,
       bathrooms,
       minPrice,
@@ -300,21 +272,16 @@ const searchPropertiesPaginated = async (req, res) => {
     } = req.query;
 
     const query = {};
-
-    // If search term exists, match title, propertyType, or location
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
         { propertyType: { $regex: search, $options: "i" } },
         { location: { $regex: search, $options: "i" } },
-        { propertyId: { $regex: search, $options: "i" } }, // added propertyId search
+        { propertyId: { $regex: search, $options: "i" } },
       ];
     }
-    
-
     if (bedrooms) query.bedrooms = { $gte: parseInt(bedrooms) };
     if (bathrooms) query.bathrooms = { $gte: parseInt(bathrooms) };
-
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = parseInt(minPrice);
