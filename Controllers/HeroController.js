@@ -1,68 +1,114 @@
+import cloudinary from "../config/cloudinary.js";
+import streamifier from "streamifier";
 import HeroSection from '../Models/HeroSection.js'; 
 
-// Create a new hero section with uploaded images
+// Helper to upload buffer files to Cloudinary
+const uploadToCloudinary = (fileBuffer, folder) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    streamifier.createReadStream(fileBuffer).pipe(stream);
+  });
+};
+
+// CREATE
 export const createHeroSection = async (req, res) => {
   try {
-    const images = req.files.map((file) => `/uploads/${file.filename}`);
-    const heroSection = await HeroSection.create({ images });
+    const uploadedImages = [];
 
-    res.status(201).json(heroSection);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    for (const file of req.files) {
+      const result = await uploadToCloudinary(file.buffer, "hero-section");
+      uploadedImages.push(result.secure_url);
+    }
+
+    const newSection = await HeroSection.create({ images: uploadedImages });
+
+    res.status(201).json(newSection);
+  } catch (err) {
+    console.error("Error uploading hero section:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-// Get all hero sections
+// GET
 export const getHeroSections = async (req, res) => {
   try {
-    const heroSections = await HeroSection.find().sort({ createdAt: -1 });
-    res.status(200).json(heroSections);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    const sections = await HeroSection.find();
+    res.json(sections);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// Update images of a hero section
+// UPDATE
 export const updateHeroSection = async (req, res) => {
   try {
-    const heroSection = await HeroSection.findById(req.params.id);
-    if (!heroSection) return res.status(404).json({ message: "Not found" });
+    const { id } = req.params;
 
-    const newImages = req.files?.map((file) => `/uploads/${file.filename}`) || [];
+    const existingSection = await HeroSection.findById(id);
+    if (!existingSection) {
+      return res.status(404).json({ message: "Hero section not found" });
+    }
 
-    // ✅ Parse preserved image paths
-    const existingImages = req.body.existingImages
-      ? JSON.parse(req.body.existingImages)
-      : [];
+    const uploadedImages = [];
+    for (const file of req.files) {
+      const result = await uploadToCloudinary(file.buffer, "hero-section");
+      uploadedImages.push(result.secure_url);
+    }
 
-    heroSection.images = [...existingImages, ...newImages];
+    existingSection.images = [
+      ...existingSection.images,
+      ...uploadedImages
+    ];
 
-    const updated = await heroSection.save();
-    res.status(200).json(updated);
+    await existingSection.save();
+    res.json(existingSection);
   } catch (err) {
-    res.status(500).json({ message: "Update failed", error: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 
-// Delete a specific image from hero section
+// DELETE one image
 export const deleteImageFromHeroSection = async (req, res) => {
-  const { sectionId, imagePath } = req.body;
-  const heroSection = await HeroSection.findById(sectionId);
-  if (!heroSection) return res.status(404).json({ message: "Section not found" });
+  try {
+    const { sectionId, imageUrl } = req.body;
 
-  heroSection.images = heroSection.images.filter(img => img !== imagePath);
-  await heroSection.save();
+    const section = await HeroSection.findById(sectionId);
+    if (!section) return res.status(404).json({ message: "Not found" });
 
-  res.status(200).json({ message: "Image removed", updatedImages: heroSection.images });
+    // Remove from Cloudinary
+    const publicId = imageUrl.split("/").slice(-2).join("/").split(".")[0];
+    await cloudinary.uploader.destroy(publicId);
+
+    // Remove from DB
+    section.images = section.images.filter(img => img !== imageUrl);
+    await section.save();
+
+    res.json(section);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
-// Delete all hero sections
+// DELETE all
 export const deleteAllHeroSections = async (req, res) => {
   try {
-    await HeroSection.deleteMany({});
-    res.status(200).json({ message: "All hero sections deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to delete all hero sections", error: error.message });
+    const sections = await HeroSection.find();
+    for (const section of sections) {
+      for (const img of section.images) {
+        const publicId = img.split("/").slice(-2).join("/").split(".")[0];
+        await cloudinary.uploader.destroy(publicId);
+      }
+    }
+
+    await HeroSection.deleteMany();
+    res.json({ message: "All hero sections deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
-

@@ -60,7 +60,7 @@ const userSchema = mongoose.Schema(
     ],
     images: [
       {
-        type: String, // Store file paths
+        type: mongoose.Schema.Types.Mixed, // Allows string OR object
       },
     ],
     isActive: {
