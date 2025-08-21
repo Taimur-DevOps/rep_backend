@@ -239,14 +239,22 @@ const searchProperties = async (req, res) => {
     const { location, propertyType, bedrooms, bathrooms, minPrice, maxPrice } = req.query;
     const query = {};
 
-    if (location) query.location = { $regex: location, $options: "i" };
-    if (propertyType) query.propertyType = propertyType;
-    if (bedrooms) query.bedrooms = { $gte: parseInt(bedrooms) };
-    if (bathrooms) query.bathrooms = { $gte: parseInt(bathrooms) };
+    if (location && location.trim() !== "") {
+      query.location = { $regex: location, $options: "i" };
+    }
+    if (propertyType && propertyType.trim() !== "") {
+      query.propertyType = { $regex: `^${propertyType}$`, $options: "i" };
+    }    
+    if (bedrooms && !isNaN(bedrooms)) {
+      query.bedrooms = { $gte: parseInt(bedrooms) };
+    }
+    if (bathrooms && !isNaN(bathrooms)) {
+      query.bathrooms = { $gte: parseInt(bathrooms) };
+    }
     if (minPrice || maxPrice) {
       query.price = {};
-      if (minPrice) query.price.$gte = parseInt(minPrice);
-      if (maxPrice) query.price.$lte = parseInt(maxPrice);
+      if (minPrice && !isNaN(minPrice)) query.price.$gte = parseInt(minPrice);
+      if (maxPrice && !isNaN(maxPrice)) query.price.$lte = parseInt(maxPrice);
     }
 
     const properties = await Property.find(query);
