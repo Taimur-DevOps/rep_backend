@@ -1,6 +1,7 @@
 import Property from "../Models/Property.js";
 import cloudinary from "../config/cloudinary.js";
 import streamifier from "streamifier";
+import mongoose from "mongoose";
 
 // Helper to upload a file buffer to Cloudinary
 const uploadToCloudinary = (fileBuffer) => {
@@ -231,75 +232,69 @@ const deletePropertyImage = async (req, res) => {
   }
 };
 
-// @desc    Search properties
-// @route   GET /api/properties/search
-// @access  Public
-const searchProperties = async (req, res) => {
-  try {
-    const { location, propertyType, bedrooms, bathrooms, minPrice, maxPrice } = req.query;
-    const query = {};
-
-    if (location && location.trim() !== "") {
-      query.location = { $regex: location, $options: "i" };
-    }
-    if (propertyType && propertyType.trim() !== "") {
-      query.propertyType = { $regex: `^${propertyType}$`, $options: "i" };
-    }    
-    if (bedrooms && !isNaN(bedrooms)) {
-      query.bedrooms = { $gte: parseInt(bedrooms) };
-    }
-    if (bathrooms && !isNaN(bathrooms)) {
-      query.bathrooms = { $gte: parseInt(bathrooms) };
-    }
-    if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice && !isNaN(minPrice)) query.price.$gte = parseInt(minPrice);
-      if (maxPrice && !isNaN(maxPrice)) query.price.$lte = parseInt(maxPrice);
-    }
-
-    const properties = await Property.find(query);
-    res.status(200).json(properties);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
 // @desc    Search with pagination
 // @route   GET /api/properties/search/paginated
 // @access  Public
 const searchPropertiesPaginated = async (req, res) => {
   try {
     const {
-      search = "",
+      location,
+      propertyType,
       bedrooms,
       bathrooms,
       minPrice,
       maxPrice,
       page = 1,
       limit = 10,
+      search
     } = req.query;
 
     const query = {};
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { propertyType: { $regex: search, $options: "i" } },
-        { location: { $regex: search, $options: "i" } },
-        { propertyId: { $regex: search, $options: "i" } },
-      ];
-    }
-    if (bedrooms) query.bedrooms = { $gte: parseInt(bedrooms) };
-    if (bathrooms) query.bathrooms = { $gte: parseInt(bathrooms) };
-    if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice) query.price.$gte = parseInt(minPrice);
-      if (maxPrice) query.price.$lte = parseInt(maxPrice);
+
+    // 🔎 search by _id or propertyId
+    if (search && search.trim() !== "") {
+      const searchValue = search.trim();
+
+      if (/^[0-9a-fA-F]{24}$/.test(searchValue)) {
+        query._id = new mongoose.Types.ObjectId(searchValue);
+      } else {
+        query.propertyId = { $regex: searchValue, $options: "i" };
+      }
     }
 
+    // location filter
+    if (location && location.trim() !== "") {
+      query.location = { $regex: location, $options: "i" };
+    }
+
+    // propertyType filter
+    if (propertyType && propertyType.trim() !== "") {
+      query.propertyType = { $regex: `^${propertyType}$`, $options: "i" };
+    }
+
+    // bedrooms filter
+    if (bedrooms && !isNaN(bedrooms)) {
+      query.bedrooms = { $gte: parseInt(bedrooms) };
+    }
+
+    // bathrooms filter
+    if (bathrooms && !isNaN(bathrooms)) {
+      query.bathrooms = { $gte: parseInt(bathrooms) };
+    }
+
+    // price range filter
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice && !isNaN(minPrice)) query.price.$gte = parseInt(minPrice);
+      if (maxPrice && !isNaN(maxPrice)) query.price.$lte = parseInt(maxPrice);
+    }
+
+    // pagination
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
+    // count and fetch
     const totalProperties = await Property.countDocuments(query);
     const totalPages = Math.ceil(totalProperties / limitNum);
 
@@ -333,6 +328,5 @@ export {
   updateProperty,
   deleteProperty,
   deletePropertyImage,
-  searchProperties,
   searchPropertiesPaginated,
 };

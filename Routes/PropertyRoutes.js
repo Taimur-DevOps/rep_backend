@@ -10,8 +10,7 @@ import {
   updateProperty,
   deleteProperty,
   deletePropertyImage,
-  searchProperties,
-  searchPropertiesPaginated,
+  searchPropertiesPaginated,  
 } from "../Controllers/PropertyController.js";
 
 const router = express.Router();
@@ -21,22 +20,17 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Only image files are allowed!'), false);
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed!"), false);
   },
 });
 
-
 // IMPORTANT: Order matters! More specific routes first
-// Pagination routes (must come before /:id)
 router.route("/paginated").get(getPaginatedProperties);
 router.route("/search/paginated").get(searchPropertiesPaginated);
 
 // Featured properties route
 router.route("/featured").get(getFeaturedProperties);
-
-// Search routes
-router.route("/search").get(searchProperties);
 
 // Basic property routes
 router
@@ -44,7 +38,7 @@ router
   .get(getProperties)
   .post(upload.array("images", 10), createProperty); // Allow up to 10 images
 
-// Individual property routes (must come after specific routes)
+// Individual property routes
 router
   .route("/:id")
   .get(getPropertyById)
