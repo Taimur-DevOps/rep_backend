@@ -70,6 +70,11 @@ const propertySchema = new mongoose.Schema(
         type: String,
       },
     ],
+    phase: {
+      type: String,
+      enum: ['phase1', 'phase2', 'phase3', 'phase4', 'phase5', 'phase6', 'phase7', 'phase8', 'phase9', ],
+      required: true,
+    }    
   },
   {
     timestamps: true, // Adds createdAt and updatedAt timestamps

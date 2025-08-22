@@ -10,7 +10,9 @@ import {
   updateProperty,
   deleteProperty,
   deletePropertyImage,
-  searchPropertiesPaginated,  
+  searchPropertiesPaginated,
+  getPropertiesByType,
+  getPropertiesByPhase,  
 } from "../Controllers/PropertyController.js";
 
 const router = express.Router();
@@ -28,9 +30,10 @@ const upload = multer({
 // IMPORTANT: Order matters! More specific routes first
 router.route("/paginated").get(getPaginatedProperties);
 router.route("/search/paginated").get(searchPropertiesPaginated);
-
-// Featured properties route
 router.route("/featured").get(getFeaturedProperties);
+
+router.route("/types").get(getPropertiesByType);
+router.route("/phases").get(getPropertiesByPhase);
 
 // Basic property routes
 router

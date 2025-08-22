@@ -317,6 +317,37 @@ const searchPropertiesPaginated = async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
+
+};
+
+// @desc Get property counts by type
+// @route GET /api/properties/types
+// @access Public
+const getPropertiesByType = async (req, res) => {
+  try {
+    const types = await Property.aggregate([
+      { $group: { _id: "$propertyType", count: { $sum: 1 } } },
+      { $project: { _id: 0, type: "$_id", count: 1 } }
+    ]);
+    res.status(200).json(types);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Get property counts by phase
+// @route GET /api/properties/phases
+// @access Public
+const getPropertiesByPhase = async (req, res) => {
+  try {
+    const phases = await Property.aggregate([
+      { $group: { _id: "$phase", count: { $sum: 1 } } },
+      { $project: { _id: 0, phase: "$_id", count: 1 } }
+    ]);
+    res.status(200).json(phases);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 export {
@@ -329,4 +360,6 @@ export {
   deleteProperty,
   deletePropertyImage,
   searchPropertiesPaginated,
+  getPropertiesByType,
+  getPropertiesByPhase
 };
