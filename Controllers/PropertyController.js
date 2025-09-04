@@ -108,6 +108,7 @@ const createProperty = async (req, res) => {
       yearBuilt,
       featured,
       features,
+      phase,
     } = req.body;
 
     const images = req.files
@@ -129,6 +130,7 @@ const createProperty = async (req, res) => {
       garage,
       areaSize,
       yearBuilt,
+      phase,
       featured: featured === "true",
       features: features ? JSON.parse(features) : [],
     });
@@ -164,6 +166,7 @@ const updateProperty = async (req, res) => {
       yearBuilt,
       featured,
       features,
+      phase,
     } = req.body;
 
     let images = property.images;
@@ -181,6 +184,7 @@ const updateProperty = async (req, res) => {
     property.blockNumber = blockNumber || property.blockNumber;
     property.images = images;
     property.propertyType = propertyType || property.propertyType;
+    property.phase = phase?.toLowerCase().replace(/\s+/g, '') || property.phase;
     property.bedrooms = bedrooms || property.bedrooms;
     property.bathrooms = bathrooms || property.bathrooms;
     property.garage = garage || property.garage;
@@ -244,6 +248,7 @@ const searchPropertiesPaginated = async (req, res) => {
       bathrooms,
       minPrice,
       maxPrice,
+      phase,
       page = 1,
       limit = 10,
       search
@@ -281,6 +286,11 @@ const searchPropertiesPaginated = async (req, res) => {
     if (bathrooms && !isNaN(bathrooms)) {
       query.bathrooms = { $gte: parseInt(bathrooms) };
     }
+
+    // phase filter
+      if (phase && phase.trim() !== "") {
+        query.phase = phase.toLowerCase().replace(/\s+/g, "");
+      }
 
     // price range filter
     if (minPrice || maxPrice) {
@@ -342,8 +352,21 @@ const getPropertiesByPhase = async (req, res) => {
   try {
     const phases = await Property.aggregate([
       { $group: { _id: "$phase", count: { $sum: 1 } } },
-      { $project: { _id: 0, phase: "$_id", count: 1 } }
+      {
+        $project: {
+          _id: 0,
+          phase: {
+            $cond: [
+              { $ifNull: ["$_id", false] },
+              { $toLower: { $replaceAll: { input: "$_id", find: " ", replacement: "" } } },
+              null,
+            ],
+          },
+          count: 1,
+        },
+      },
     ]);
+
     res.status(200).json(phases);
   } catch (error) {
     res.status(500).json({ message: error.message });
